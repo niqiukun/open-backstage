@@ -1,41 +1,41 @@
 <template>
   <component
-    :is="mappedComponent.component"
+    :is="mappedComponent"
     v-if="mappedComponent"
     v-model="modelValue"
-    v-bind="mappedComponent.props || {}"
+    :property="property"
   ></component>
 </template>
 
 <script lang="ts" setup>
-import { isEnum, isList, type Property } from '@/packages/define';
+import {
+  isEnum,
+  isList,
+  type Property,
+  type PropertyType,
+} from '@/packages/define';
 import Text from './text.vue';
 import List from './list.vue';
 import Enum from './enum.vue';
+import Integer from './integer.vue';
+import BooleanElement from './boolean.vue';
 
 const props = defineProps<{
-  property: Property;
+  property: Property<PropertyType>;
 }>();
 const modelValue = defineModel<any>();
 const mappedComponent = computed(() => {
   const property = props.property;
   if (property.type === 'text') {
-    return { component: Text };
+    return Text;
+  } else if (property.type === 'integer') {
+    return Integer;
+  } else if (property.type === 'boolean') {
+    return BooleanElement;
   } else if (isList(props.property)) {
-    return {
-      component: List,
-      props: {
-        list: property.type,
-        itemLabel: property.label || property.key,
-      },
-    };
+    return List;
   } else if (isEnum(property)) {
-    return {
-      component: Enum,
-      props: {
-        enum: property.type,
-      },
-    };
+    return Enum;
   }
   return undefined;
 });

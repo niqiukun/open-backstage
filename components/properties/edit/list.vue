@@ -7,15 +7,15 @@
     >
       <div class="list-item__single__content">
         <el-form-item
-          v-for="property in list.definition"
-          :key="property.key"
-          :label="`${property.label || property.key}${index + 1}`"
+          v-for="listProperty in list.definition"
+          :key="listProperty.key"
+          :label="`${listProperty.label || listProperty.key}${index + 1}`"
           label-position="top"
           required
         >
           <property-edit
-            v-model="item[property.key]"
-            :property="property"
+            v-model="item[listProperty.key]"
+            :property="listProperty"
           ></property-edit>
         </el-form-item>
       </div>
@@ -40,8 +40,7 @@ import PropertyEdit from './index.vue';
 
 const props = withDefaults(
   defineProps<{
-    itemLabel: string;
-    list: ListDefinition<readonly Property[]>;
+    property: Property<ListDefinition<readonly Property<any>[]>>;
     modelValue?: any[];
   }>(),
   {
@@ -49,9 +48,11 @@ const props = withDefaults(
   }
 );
 const emit = defineEmits(['update:modelValue']);
+const list = computed(() => props.property.type);
+const itemLabel = computed(() => props.property.label || props.property.key);
 
 function handleAdd() {
-  const newItem = props.list.definition.reduce(
+  const newItem = props.property.type.definition.reduce(
     (acc, property) => {
       acc[property.key] = undefined;
       return acc;

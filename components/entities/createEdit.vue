@@ -11,7 +11,7 @@
         :key="property.key"
         :label="property.label || property.key"
         :label-width="180"
-        required
+        :required="!property.optional"
       >
         <property-edit v-model="form[property.key]" :property="property" />
       </el-form-item>

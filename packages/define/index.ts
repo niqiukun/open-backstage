@@ -12,7 +12,10 @@ export class EnumDefinition<
 }
 
 export class ListDefinition<
-  T extends readonly Property[] | PrimitiveType | EnumDefinition<string, any>,
+  T extends
+    | readonly Property<any>[]
+    | PrimitiveType
+    | EnumDefinition<string, any>,
 > {
   definition: T;
   options: ListOptions<T>;
@@ -25,23 +28,39 @@ export class ListDefinition<
 
 type PrimitiveType = 'text' | 'timestamp' | 'boolean' | 'integer';
 
-type PropertyType =
+export type PropertyType =
   | PrimitiveType
   | ListDefinition<any>
   | EnumDefinition<string, any>;
 
-export type Property<Name extends string = string> = {
+export type Property<
+  Type extends PropertyType,
+  Name extends string = string,
+> = {
   key: Name;
   label?: string;
-  type: PropertyType;
+  type: Type;
+  optional?: boolean;
 };
 
-type EntityConfig<Props extends readonly Property[]> = {
+type EntityConfig<Props extends readonly Property<any>[]> = {
   label?: string;
   properties: Props;
   constraints?: {
     unique?: Array<Array<Props[number]['key']> | Props[number]['key']>;
   };
+  enumOptions?: {
+    labelField?: Props[number]['key'];
+    valueField?: Props[number]['key'];
+  };
+  dataSource?:
+    | {
+        type: 'nuxt';
+      }
+    | {
+        type: 'fixed';
+        data: ExtractTypeFromProps<Props>[];
+      };
 };
 
 export class EntityDefinition<
@@ -64,7 +83,7 @@ type PrimitiveTypeMap = {
   integer: number;
 };
 
-type ExtractTypeFromProps<T extends readonly Property[]> = {
+type ExtractTypeFromProps<T extends readonly Property<any>[]> = {
   [K in T[number] as K['key']]: K['type'] extends PrimitiveType
     ? PrimitiveTypeMap[K['type']]
     : K['type'] extends ListDefinition<any>
@@ -76,12 +95,12 @@ type ExtractTypeFromProps<T extends readonly Property[]> = {
 
 type ExtractItemTypeFromListConfig<T> = T extends PrimitiveType
   ? PrimitiveTypeMap[T]
-  : T extends readonly Property[]
+  : T extends readonly Property<any>[]
     ? ExtractTypeFromProps<T>
     : never;
 type ExtractTypeFromListConfig<T> = T extends PrimitiveType
   ? Array<PrimitiveTypeMap[T]>
-  : T extends readonly Property[]
+  : T extends readonly Property<any>[]
     ? Array<ExtractTypeFromProps<T>>
     : never;
 type ExtractTypeFromList<T> =
@@ -105,7 +124,7 @@ export type ExtractType<T> =
 
 export function defineEntity<
   Name extends string,
-  const T extends ReadonlyArray<Property>,
+  const T extends readonly Property<any>[],
 >(
   name: Name,
   entity: EntityConfig<T>
@@ -115,33 +134,57 @@ export function defineEntity<
 
 export function defineEnum<
   Name extends string,
-  const T extends Array<{ key: string; label: string }>,
+  const T extends { key: string; label: string }[],
 >(name: Name, enumDefinition: T): EnumDefinition<Name, T> {
   return new EnumDefinition(name, enumDefinition);
 }
 
 type ListOptions<
-  T extends readonly Property[] | PrimitiveType | EnumDefinition<string, any>,
+  T extends
+    | readonly Property<any>[]
+    | PrimitiveType
+    | EnumDefinition<string, any>,
 > = {
-  toString?: (value: ExtractItemTypeFromListConfig<T>) => string;
+  table?: {
+    displayFormat?: 'tag' | 'comma-separated';
+    displayLimit?: number;
+    itemToString?: (value: ExtractItemTypeFromListConfig<T>) => string;
+  };
 };
 
-export function listOf<const T extends ReadonlyArray<Property> | PrimitiveType>(
-  type: T,
-  options: ListOptions<T> = {}
-) {
+export function listOf<
+  const T extends ReadonlyArray<Property<any>> | PrimitiveType,
+>(type: T, options: ListOptions<T> = {}) {
   return new ListDefinition(type, options);
 }
 
+export function enumFrom<const T extends EntityDefinition<string, any>>(
+  entity: T
+): EnumDefinition<T['name'], readonly { key: string; label: string }[]> {
+  if (!entity.definition.enumOptions) {
+    throw new Error(`Entity ${entity.name} does not have enumOptions defined`);
+  }
+  if (entity.definition.dataSource?.type !== 'fixed') {
+    throw new Error(`Entity ${entity.name} does not have fixed data source`);
+  }
+  return new EnumDefinition(
+    entity.name,
+    entity.definition.dataSource.data.map((item: any) => ({
+      key: item[entity.definition.enumOptions.valueField],
+      label: item[entity.definition.enumOptions.labelField],
+    }))
+  );
+}
+
 export function isList(
-  property: Property
-): property is Property & { type: ListDefinition<any> } {
+  property: Property<any>
+): property is Property<any> & { type: ListDefinition<any> } {
   return property.type instanceof ListDefinition;
 }
 
 export function isEnum(
-  property: Property
-): property is Property & { type: EnumDefinition<string, any> } {
+  property: Property<any>
+): property is Property<any> & { type: EnumDefinition<string, any> } {
   return property.type instanceof EnumDefinition;
 }
 
@@ -188,7 +231,7 @@ export function defineCollection<
     >,
     getEntity(
       name: string
-    ): EntityDefinition<string, EntityConfig<readonly Property[]>> {
+    ): EntityDefinition<string, EntityConfig<readonly Property<any>[]>> {
       const entity = entities[name];
       if (!entity) {
         throw new Error(`Entity ${name} not found`);

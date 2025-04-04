@@ -3,14 +3,16 @@
 </template>
 
 <script lang="ts" setup>
-import type { EnumDefinition } from '@/packages/define';
+import type { EnumDefinition, Property } from '@/packages/define';
 
 const props = defineProps<{
-  enum: EnumDefinition<string, readonly { key: string; label: string }[]>;
+  property: Property<
+    EnumDefinition<string, readonly { key: string; label: string }[]>
+  >;
 }>();
 const modelValue = defineModel<string>();
 const options = computed(() => {
-  return props.enum.definition.map((item) => ({
+  return props.property.type.definition.map((item) => ({
     label: item.label,
     value: item.key,
   }));
